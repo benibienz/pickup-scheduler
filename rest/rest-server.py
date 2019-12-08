@@ -24,7 +24,8 @@ def new_facility_calendar(name):
 def match_player(name):
     try:
         send_message(msg=f'REST server received player match request for {name}', exchange='logs', key='info')
-        send_message(msg=request.data, exchange='toGS')
+        playersdb.set(name, request.data)
+        send_message(msg=name, exchange='toGS')
         return Response(response=f'Matching player: {name}', status=200)
 
     except Exception as e:
