@@ -3,6 +3,7 @@ from flask import Flask, request, Response
 import redis
 import pickle
 import pika
+import pandas
 
 APP = Flask(__name__)
 
@@ -20,11 +21,20 @@ def new_facility_calendar(name):
         return Response(response=e, status=500)
 
 
-@APP.route('/player/<name>', methods=['PUT'])
+@APP.route('/match/<name>', methods=['PUT'])
 def match_player(name):
     try:
         send_message(msg=f'REST server received player match request for {name}', exchange='logs', key='info')
-        playersdb.set(name, request.data)
+        cal = pickle.loads(request.data)
+        if playersdb.exists(name):
+            player = pickle.loads(playersdb.get(name))
+            if player['calendar'] is not None:
+                # cannot submit new calendar
+                return Response(response=f'Player already matched: {name}\n', status=200)
+        else:
+            player = {'calendar': None, 'games': [], 'score': 0}
+        player['calendar'] = cal
+        playersdb.set(name, pickle.dumps(player))
         send_message(msg=name, exchange='toGS')
         return Response(response=f'Matching player: {name}', status=200)
 
@@ -34,10 +44,63 @@ def match_player(name):
         return Response(response=e, status=500)
 
 
-# @APP.route('/???/<checksum>', methods=['GET'])
-# def get_something(something):
-#     send_message(msg=f'REST server received GET request for {something}', exchange='logs', key='info')
-#     return Response(response=redisByChecksum.get(something), status=200)
+@APP.route('/player/<name>', methods=['GET'])
+def get_player_info(name):
+    send_message(msg=f'REST server received player info request for {name}', exchange='logs', key='info')
+    player = pickle.loads(playersdb.get(name))
+    resp = f"Info for player {name}:\nGames: {player['games']}\nScore: {player['score']}\n"
+    return Response(response=resp, status=200)
+
+
+@APP.route('/game/<key>', methods=['GET'])
+def get_game_info(key):
+    send_message(msg=f'REST server received game info request for {key}', exchange='logs', key='info')
+    game = pickle.loads(gamesdb.get(key))
+    resp = f"Info for game on {key}:\nTeam A: {game['team A']}\nTeam B: {game['team B']}\n" \
+           f"Winner: {game['result']}\n"
+    return Response(response=resp, status=200)
+
+
+@APP.route('/report/<key>/<res>', methods=['PUT'])
+def report_game_result(key, res):
+    send_message(msg=f'REST server received game result for {key}', exchange='logs', key='info')
+    if not gamesdb.exists(key):
+        return Response(response=f'game does not exist', status=200)
+    game = pickle.loads(gamesdb.get(key))
+    if game['result'] is not None:
+        # already reported
+        return Response(response=f'Game already reported as {game["result"]}', status=200)
+    else:
+        # add scores to players
+        for team in ['A', 'B']:
+            for name in game[f'team {team}']:
+                player = pickle.loads(playersdb.get(name))
+                if res == team:
+                    player['score'] += 3  # 3 for a win
+                elif res == 'tie':
+                    player['score'] += 1  # 1 for a tie
+                playersdb.set(name, pickle.dumps(player))
+
+        # record result
+        game['result'] = res
+        gamesdb.set(key, pickle.dumps(game))
+        return Response(response=f'Game at {key} result: {res} - saved\n', status=200)
+
+
+@APP.route('/new', methods=['PUT'])
+def new_week():
+    """ Start a new week """
+    gamesdb.flushdb()  # flush games
+    facilitiesdb.flushdb()  # flush facilities
+
+    # reset player games and calendars but keep scores
+    for name in playersdb.keys():
+        player = pickle.loads(playersdb.get(name))
+        player['calendar'] = None
+        player['games'] = []
+        playersdb.set(name, pickle.dumps(player))
+    send_message('New week request received', exchange='logs', key='info')
+    return Response(response='DBs flushed. New week begins\n', status=200)
 
 
 def send_message(msg, exchange, key=None):

@@ -8,8 +8,8 @@ from collections import defaultdict
 
 
 class FacilityCalendar:
-    def __init__(self, price_cal, max_players=2):
-        self.max_players = max_players
+    def __init__(self, price_cal, team_size):
+        self.team_size = team_size
         self.price_cal = price_cal
         self.team_cal = price_cal.copy() * 0
         self.team_dict = defaultdict(list)
@@ -17,13 +17,14 @@ class FacilityCalendar:
     def match_with_player(self, name, player_cal):
         updated_team_cal = self.team_cal.copy()
         filled_team_keys = []
+
         for loc in player_cal.stack().index:
             current_player_count = self.team_cal.at[loc]
             if self.price_cal.at[loc] <= player_cal.at[loc]:
-                if current_player_count < self.max_players:
+                if current_player_count < self.team_size * 2:
                     updated_team_cal.at[loc] += 1
                     self.team_dict[f'{loc[1]}-{loc[0]}'].append(name)
-                    if current_player_count == self.max_players - 1:
+                    if current_player_count == self.team_size * 2 - 1:
                         filled_team_keys.append(f'{loc[1]}-{loc[0]}')
                 else:
                     continue  # team is filled
@@ -35,22 +36,33 @@ class FacilityCalendar:
         return self.team_dict[key]
 
 
-def make_teams(players):
-    """ Random selection for now """
-    team_size = int(len(players) / 2)
-    random.shuffle(players)
-    return players[:team_size], players[team_size:]
+def make_teams(players, timeslot):
+    """ Sort players and alternate team picks """
+    player_list_with_scores = []
+    for name in players:
+        player = pickle.loads(playersdb.get(name))
+
+        # while we have player object loaded, set game timeslot for player
+        player['games'].append(timeslot)
+        playersdb.set(name, pickle.dumps(player))
+
+        player_list_with_scores.append((name, player['score']))
+
+    player_list_with_scores.sort(key=lambda tup: tup[1], reverse=True)   # sort by score
+    teamA = [p[0] for p in player_list_with_scores[::2]]
+    teamB = [p[0] for p in player_list_with_scores[1::2]]
+    return teamA, teamB
 
 
 def callback(ch, method, properties, body):
     """ RabbitMQ callback """
     name = body
-    player_cal = pickle.loads(playersdb.get(name))
+    player = pickle.loads(playersdb.get(name))
+    player_cal = player['calendar']
     send_message(f'Received calendar for {name}', exchange='logs', key='info')
 
     try:
         # get FM calendar
-        # TODO: scale??
         fm_cal = pickle.loads(facilitiesdb.get('FM'))
         filled_games = fm_cal.match_with_player(name, player_cal)
     except Exception as e:
@@ -66,7 +78,7 @@ def callback(ch, method, properties, body):
         send_message(f'Team dict: {fm_cal.team_dict}', exchange='logs', key='debug')
 
         # assign teams
-        team_a, team_b = make_teams(player_list)
+        team_a, team_b = make_teams(player_list, timeslot)
 
         # create game object and set db
         game = {'team A': team_a, 'team B': team_b, 'result': None}
