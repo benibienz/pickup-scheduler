@@ -48,7 +48,6 @@ def send_facility_calendar(name, addr, team_size):
     response = requests.put(url, data=pickle.dumps(cal))
 
     # decode response
-    print('Response code: {}'.format(response.status_code))
     print(response.text)
 
 
@@ -60,7 +59,6 @@ def send_player_calendar(name, addr):
     response = requests.put(url, data=pickle.dumps(cal))
 
     # decode response
-    print('Response code: {}'.format(response.status_code))
     print(response.text)
 
 

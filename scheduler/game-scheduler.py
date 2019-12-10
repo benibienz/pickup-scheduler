@@ -10,11 +10,12 @@ from collections import defaultdict
 class FacilityCalendar:
     def __init__(self, price_cal, team_size):
         self.team_size = team_size
-        self.price_cal = price_cal
+        self.price_cal = price_cal  # pandas df
         self.team_cal = price_cal.copy() * 0
         self.team_dict = defaultdict(list)
 
     def match_with_player(self, name, player_cal):
+        """ Adds player calendar to team_cal and returns filled teams """
         updated_team_cal = self.team_cal.copy()
         filled_team_keys = []
 
@@ -37,7 +38,7 @@ class FacilityCalendar:
 
 
 def make_teams(players, timeslot):
-    """ Sort players and alternate team picks """
+    """ Sort players by score and alternate team picks """
     player_list_with_scores = []
     for name in players:
         player = pickle.loads(playersdb.get(name))
@@ -73,9 +74,6 @@ def callback(ch, method, properties, body):
     for timeslot in filled_games:
         send_message(f'Game filled at {timeslot}', exchange='logs', key='info')
         player_list = fm_cal.get_team(timeslot)
-
-        send_message(f'Player list: {player_list}', exchange='logs', key='debug')
-        send_message(f'Team dict: {fm_cal.team_dict}', exchange='logs', key='debug')
 
         # assign teams
         team_a, team_b = make_teams(player_list, timeslot)
