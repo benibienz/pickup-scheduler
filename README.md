@@ -18,11 +18,12 @@ FMs can upload and update a calendar of available timeslots for each of their fa
 
 ## How to run
 
-1) Launch everything with `sh launch.sh`
+1) Launch everything with `sh launch.sh` (NOTE: you will need to edit the file with your own project ID)
 2) Run `kubectl get service` to list services and view the external IP of the REST server
 3) Run `kubectl get pods` to list pods and view the name of the logs pod
 4) To see logs `kubectl logs <name of logs pod>`
-4) To add scheduler `kubectl scale --current-replicas=1 --replicas=2 deployment/scheduler`
+5) To run a test `sh tools/test_2.sh`
+6) To add scheduler node `kubectl scale --current-replicas=1 --replicas=2 deployment/scheduler`
 
 ## Databases
 There are three Redis DBs:
