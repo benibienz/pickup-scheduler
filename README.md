@@ -1,5 +1,4 @@
-# PlayMaker
-Pickup sport scheduling on the Cloud
+# Pickup sport scheduling on the Cloud
 
 ## About
 
@@ -7,7 +6,7 @@ Pickup sport scheduling on the Cloud
 Successful pickup games currently rely on volunteers taking the initiative to organize a time, find people and book the facility. Thus the number of pickup games available in a local area is constrained by the number of willing organizers and their personal time availability, resulting in empty facilities and people who want to play sitting at home. The games that are arranged often suffer problems such as inconsistent numbers of people turning up and unbalanced teams.
 
 ### The Solution
-PlayMaker seeks to tackle these problems by providing a scheduling service with the following characteristics:
+This app seeks to tackle these problems by providing a scheduling service with the following characteristics:
 * Two user types: Player and Facility Manager (FM).
 FMs can upload and update a calendar of available timeslots for each of their facilities to the REST server. Each timeslot has a price associated with it.
 * Players can upload a calendar of their availability and max prices they are willing to pay to the REST server.
